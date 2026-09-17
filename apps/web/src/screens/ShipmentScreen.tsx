@@ -64,6 +64,29 @@ export default function ShipmentScreen() {
     }
   }
 
+  async function seedDemo() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await api.seedDemo("C02");
+      const s = await api.shipment(r.shipment_id);
+      setShipment(s.shipment);
+      setExternalRef(s.shipment.external_reference);
+      if (s.shipment.purchase_order_id) setPoId(s.shipment.purchase_order_id);
+      setDocs(s.documents);
+      setEvidence(s.evidence);
+      setMsg(
+        r.already_seeded
+          ? "Demo case already loaded — showing it."
+          : `Demo case C02 loaded through the real pipeline: ${r.exceptions_created.length} exception(s) detected.`,
+      );
+    } catch (e) {
+      setMsg(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     // convenience: pre-seed with the canonical demo case if a shipment id was
     // passed via query (used by the demo flow)
@@ -151,6 +174,20 @@ export default function ShipmentScreen() {
       </div>
 
       {msg && <p className="rounded bg-slate-800 p-3 text-sm text-slate-200">{msg}</p>}
+
+      <div className="rounded-lg border border-dashed border-emerald-700/60 p-3">
+        <p className="text-xs text-slate-400">
+          Demo (repeatable, no manual steps): loads the canonical case — PO 800 kg / BOL 815 kg /
+          POD 815 kg / Invoice 840 kg — through the real upload → extract → investigate pipeline.
+        </p>
+        <button
+          onClick={seedDemo}
+          disabled={busy}
+          className="mt-2 rounded bg-emerald-700 px-4 py-1.5 text-sm font-medium hover:bg-emerald-600 disabled:opacity-50"
+        >
+          ⚡ Load demo case C02
+        </button>
+      </div>
 
       {docs.length > 0 && (
         <div>

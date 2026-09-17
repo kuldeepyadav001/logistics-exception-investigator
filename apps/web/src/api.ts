@@ -95,6 +95,14 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  seedDemo: (caseId: string) =>
+    http<{
+      case_id: string;
+      shipment_id: string;
+      already_seeded: boolean;
+      exceptions: ExceptionRec[];
+      exceptions_created: string[];
+    }>(`/demo/seed?case_id=${caseId}`, { method: "POST" }),
   shipments: (params: {
     external_reference: string;
     purchase_order_id?: string;

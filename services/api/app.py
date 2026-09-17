@@ -1,4 +1,4 @@
-"""HTTP API — Blueprint §24 API Contract (8 endpoints + health).
+"""HTTP API — Blueprint §24 API Contract (8 endpoints + health + demo seed).
 
 Local dev:  uvicorn services.api.app:app --port 8000
 Deploy:     each endpoint is a thin wrapper suitable for API Gateway +
@@ -8,6 +8,9 @@ Conventions:
 - all requests carry an X-Request-ID (generated if absent) — correlation IDs
 - errors: {"error": {"code", "message", "request_id"}}
 - uploads are idempotent per (shipment, document_type, checksum) — §27
+- /demo/seed runs the REAL pipeline (same ingest + investigation code paths)
+  on a synthetic case — demo reproducibility without manual DB manipulation
+  (Definition of Done, Blueprint §31).
 """
 from __future__ import annotations
 
@@ -18,7 +21,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -170,60 +173,14 @@ def create_app(
             )
         )
 
-    # -- health --------------------------------------------------------------
+    # -- internal pipeline (shared by upload endpoint AND /demo/seed) -------
 
-    @app.get("/health")
-    def health() -> dict:
-        aws_configured = bool(os.environ.get("AWS_ACCESS_KEY_ID"))
-        return {
-            "status": "ok",
-            "environment": "aws" if aws_configured else "local",
-            "backends": {
-                "s3": "aws" if aws_configured else "local-filesystem",
-                "dynamodb": "aws" if aws_configured else "sqlite",
-                "textract": "aws" if aws_configured else "local-controlled-parser",
-                "bedrock": "aws" if aws_configured else "deterministic-rules",
-            },
-        }
-
-    # -- shipments -----------------------------------------------------------
-
-    @app.post("/shipments", status_code=201)
-    def create_shipment(req: CreateShipmentRequest) -> dict:
-        shipment = Shipment(shipment_id=new_id("sht"), **req.model_dump())
-        repo.save_shipment(shipment)
-        _audit("shipment", shipment.shipment_id, ActorType.SYSTEM, "shipment.created")
-        logger.info("shipment created %s", shipment.shipment_id)
-        return {"shipment": shipment}
-
-    @app.post("/shipments/{shipment_id}/documents", status_code=201)
-    async def upload_document(
-        shipment_id: str,
-        file: UploadFile = File(...),
-        document_type: str = Form(...),
+    def ingest(
+        shipment: Shipment, doc_type: DocumentType, filename: str, data: bytes
     ) -> dict:
-        shipment = repo.get_shipment(shipment_id)
-        if shipment is None:
-            raise _not_found("shipment", shipment_id)
-        try:
-            doc_type = DocumentType(document_type.upper())
-        except ValueError:
-            raise _conflict(
-                f"invalid document_type '{document_type}'", "INVALID_DOCUMENT_TYPE"
-            )
-
-        ext = ALLOWED_CONTENT_TYPES.get(file.content_type or "")
-        if ext is None:
-            raise _conflict(
-                f"unsupported content type '{file.content_type}' "
-                f"(allowed: {sorted(ALLOWED_CONTENT_TYPES)})",
-                "UNSUPPORTED_CONTENT_TYPE",
-            )
-
-        data = await file.read()
+        """Store + extract + normalize one document. Idempotent by checksum."""
         checksum = hashlib.sha256(data).hexdigest()
-
-        existing = repo.find_document_by_checksum(shipment_id, doc_type.value, checksum)
+        existing = repo.find_document_by_checksum(shipment.shipment_id, doc_type.value, checksum)
         if existing is not None:
             # §27: duplicate upload → do not reprocess
             return {
@@ -232,12 +189,14 @@ def create_app(
                 "note": "identical document already registered for this shipment/type; not reprocessed",
             }
 
+        lower = filename.lower()
+        ext = ".pdf" if lower.endswith(".pdf") else ".md" if lower.endswith(".md") else ".txt"
         document = Document(
             document_id=new_id("doc"),
-            shipment_id=shipment_id,
+            shipment_id=shipment.shipment_id,
             document_type=doc_type,
-            s3_key=f"shipments/{shipment_id}/documents/{new_id('obj')}{ext}",
-            original_filename=file.filename or "upload",
+            s3_key=f"shipments/{shipment.shipment_id}/documents/{new_id('obj')}{ext}",
+            original_filename=filename,
             extraction_status=ExtractionStatus.RUNNING,
             checksum=checksum,
         )
@@ -245,8 +204,7 @@ def create_app(
         store.put(document.s3_key, data)
         _audit("document", document.document_id, ActorType.USER, "document.uploaded")
 
-        # extraction + normalization (synchronous for MVP — ADR-008)
-        result = extractor.extract(data, document.original_filename)
+        result = extractor.extract(data, filename)
         repo.clear_evidence_for_document(document.document_id)
         for f in result.fields:
             repo.save_evidence(
@@ -289,21 +247,7 @@ def create_app(
             },
         }
 
-    @app.get("/shipments/{shipment_id}")
-    def get_shipment(shipment_id: str) -> dict:
-        shipment = repo.get_shipment(shipment_id)
-        if shipment is None:
-            raise _not_found("shipment", shipment_id)
-        documents = repo.documents_for_shipment(shipment_id)
-        return {
-            "shipment": shipment,
-            "documents": documents,
-            "evidence": repo.evidence_for_shipment(shipment_id),
-            "exceptions": repo.exceptions_for_shipment(shipment_id),
-        }
-
-    @app.post("/shipments/{shipment_id}/investigate")
-    def investigate(shipment_id: str) -> dict:
+    def run_investigation(shipment_id: str) -> dict:
         shipment = repo.get_shipment(shipment_id)
         if shipment is None:
             raise _not_found("shipment", shipment_id)
@@ -335,7 +279,6 @@ def create_app(
                 None,
             )
             if existing is not None:
-                # merge new findings into the open exception (idempotent re-run)
                 existing.deterministic_findings = ex.deterministic_findings
                 existing.affected_fields = ex.affected_fields
                 existing.estimated_exposure = ex.estimated_exposure
@@ -349,10 +292,11 @@ def create_app(
                 _audit("exception", ex.exception_id, ActorType.SYSTEM, "exception.created")
                 created.append(ex)
 
-            investigations_list = repo.investigations_for_exception(ex.exception_id)
             if ex.status == ExceptionStatus.OPEN:
                 snapshot = [
-                    ef for ef in all_evidence if ef.document_id in _document_ids_in_findings(ex)
+                    ef
+                    for ef in all_evidence
+                    if ef.document_id in _document_ids_in_findings(ex)
                 ]
                 investigation = build_investigation(ex, snapshot or all_evidence)
                 repo.save_investigation(investigation)
@@ -375,6 +319,133 @@ def create_app(
             "exceptions": repo.exceptions_for_shipment(shipment_id),
             "investigations": investigations,
         }
+
+    # -- health --------------------------------------------------------------
+
+    @app.get("/health")
+    def health() -> dict:
+        aws_configured = bool(os.environ.get("AWS_ACCESS_KEY_ID"))
+        return {
+            "status": "ok",
+            "environment": "aws" if aws_configured else "local",
+            "backends": {
+                "s3": "aws" if aws_configured else "local-filesystem",
+                "dynamodb": "aws" if aws_configured else "sqlite",
+                "textract": "aws" if aws_configured else "local-controlled-parser",
+                "bedrock": "aws" if aws_configured else "deterministic-rules",
+            },
+        }
+
+    # -- demo seed (reproducibility without manual DB manipulation) ----------
+
+    @app.post("/demo/seed", status_code=201)
+    def seed_demo(case_id: str = Query("C02", min_length=1, max_length=8)) -> dict:
+        """Seed a synthetic case through the REAL pipeline (upload → extract →
+        normalize → investigate). Idempotent per case (external reference)."""
+        from scripts.generate_dataset import CARRIER, CASES, VENDOR, build_case
+
+        spec = next((c for c in CASES if c.case_id.upper() == case_id.upper()), None)
+        if spec is None:
+            raise _not_found("demo_case", case_id)
+        result = build_case(spec)
+        m = result["metadata"]
+
+        existing = next(
+            (
+                s
+                for s in repo.list_shipments()
+                if s.external_reference == m["shipment_ref"]
+            ),
+            None,
+        )
+        if existing is not None:
+            return {
+                "case_id": spec.case_id,
+                "shipment_id": existing.shipment_id,
+                "already_seeded": True,
+                "exceptions": [e.exception_id for e in repo.exceptions_for_shipment(existing.shipment_id)],
+            }
+
+        shipment = Shipment(
+            shipment_id=new_id("sht"),
+            external_reference=m["shipment_ref"],
+            purchase_order_id=m["po_number"],
+            carrier_id=CARRIER,
+            vendor_id=VENDOR,
+            origin="MUMBAI",
+            destination="DELHI",
+        )
+        repo.save_shipment(shipment)
+        _audit("shipment", shipment.shipment_id, ActorType.SYSTEM, "shipment.created")
+
+        ingested: list[dict] = []
+        for doc_type_key, data in result["files"].items():
+            dt = DocumentType("INVOICE") if doc_type_key == "INVOICE_2" else DocumentType(doc_type_key)
+            ingested.append(ingest(shipment, dt, f"{doc_type_key}_{m['shipment_ref']}.pdf", data))
+
+        body = run_investigation(shipment.shipment_id)
+        return {
+            "case_id": spec.case_id,
+            "shipment_id": shipment.shipment_id,
+            "already_seeded": False,
+            "documents": [i["document"] for i in ingested],
+            "extraction": [i["extraction"] for i in ingested],
+            **body,
+        }
+
+    # -- shipments -----------------------------------------------------------
+
+    @app.post("/shipments", status_code=201)
+    def create_shipment(req: CreateShipmentRequest) -> dict:
+        shipment = Shipment(shipment_id=new_id("sht"), **req.model_dump())
+        repo.save_shipment(shipment)
+        _audit("shipment", shipment.shipment_id, ActorType.SYSTEM, "shipment.created")
+        logger.info("shipment created %s", shipment.shipment_id)
+        return {"shipment": shipment}
+
+    @app.post("/shipments/{shipment_id}/documents", status_code=201)
+    async def upload_document(
+        shipment_id: str,
+        file: UploadFile = File(...),
+        document_type: str = Form(...),
+    ) -> dict:
+        shipment = repo.get_shipment(shipment_id)
+        if shipment is None:
+            raise _not_found("shipment", shipment_id)
+        try:
+            doc_type = DocumentType(document_type.upper())
+        except ValueError:
+            raise _conflict(
+                f"invalid document_type '{document_type}'", "INVALID_DOCUMENT_TYPE"
+            )
+
+        ext = ALLOWED_CONTENT_TYPES.get(file.content_type or "")
+        if ext is None:
+            raise _conflict(
+                f"unsupported content type '{file.content_type}' "
+                f"(allowed: {sorted(ALLOWED_CONTENT_TYPES)})",
+                "UNSUPPORTED_CONTENT_TYPE",
+            )
+
+        data = await file.read()
+        filename = file.filename or f"upload{ext}"
+        return ingest(shipment, doc_type, filename, data)
+
+    @app.get("/shipments/{shipment_id}")
+    def get_shipment(shipment_id: str) -> dict:
+        shipment = repo.get_shipment(shipment_id)
+        if shipment is None:
+            raise _not_found("shipment", shipment_id)
+        return {
+            "shipment": shipment,
+            "documents": repo.documents_for_shipment(shipment_id),
+            "evidence": repo.evidence_for_shipment(shipment_id),
+            "exceptions": repo.exceptions_for_shipment(shipment_id),
+        }
+
+    @app.post("/shipments/{shipment_id}/investigate")
+    def investigate(shipment_id: str) -> dict:
+        return run_investigation(shipment_id)
 
     # -- exceptions ----------------------------------------------------------
 
@@ -415,13 +486,11 @@ def create_app(
         if ex is None:
             raise _not_found("exception", exception_id)
         investigations = repo.investigations_for_exception(exception_id)
-        shipment = repo.get_shipment(ex.shipment_id)
-        documents = repo.documents_for_shipment(ex.shipment_id) if shipment else []
         return {
             "exception": ex,
             "investigation": investigations[-1] if investigations else None,
             "evidence": repo.evidence_for_shipment(ex.shipment_id),
-            "documents": documents,
+            "documents": repo.documents_for_shipment(ex.shipment_id),
             "decisions": repo.decisions_for_exception(exception_id),
         }
 
@@ -486,7 +555,7 @@ def create_app(
 
 
 def _document_ids_in_findings(ex: Exception) -> set[str]:
-    """Document ids referenced by an exception's findings (doc id is the suffix after ':')."""
+    """Document ids referenced by an exception's findings (suffix after ':')."""
     ids = set()
     for f in ex.deterministic_findings:
         for src in (f.reference_source, f.observed_source):

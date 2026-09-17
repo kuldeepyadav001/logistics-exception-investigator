@@ -1,0 +1,179 @@
+{
+  "measured_at": "2026-09-17T18:27:00+00:00",
+  "date": "2026-09-17",
+  "environment": "local adapters (filesystem/sqlite/controlled-parser/rule-table)",
+  "engine": "deterministic \u2014 no LLM used for detection",
+  "cases_total": 11,
+  "cases_fully_correct": 11,
+  "detection": {
+    "true_positives": 10,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "definition": "per-case exact-type-set: TP = detected types that are expected; FP = extra types; FN = missed expected types"
+  },
+  "latency_seconds": {
+    "per_case": {
+      "C01": 0.105,
+      "C02": 0.041,
+      "C03": 0.071,
+      "C04": 0.078,
+      "C05": 0.044,
+      "C06": 0.05,
+      "C07": 0.054,
+      "C08": 0.07,
+      "C09": 0.043,
+      "C10": 0.052,
+      "C11": 0.05
+    },
+    "min": 0.041,
+    "median": 0.052,
+    "max": 0.105,
+    "total": 0.657
+  },
+  "rows": [
+    {
+      "case_id": "C01",
+      "description": "Clean shipment - all documents agree",
+      "expected": [],
+      "detected": [],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.105
+    },
+    {
+      "case_id": "C02",
+      "description": "CANONICAL DEMO CASE - invoice exceeds delivered quantity",
+      "expected": [
+        "QUANTITY_MISMATCH"
+      ],
+      "detected": [
+        "QUANTITY_MISMATCH"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.041
+    },
+    {
+      "case_id": "C03",
+      "description": "Amount mismatch - invoice amount higher than unit price x billed qty",
+      "expected": [
+        "AMOUNT_MISMATCH"
+      ],
+      "detected": [
+        "AMOUNT_MISMATCH"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.071
+    },
+    {
+      "case_id": "C04",
+      "description": "Duplicate invoice - vendor resubmits same invoice number and amount on a later date",
+      "expected": [
+        "DUPLICATE_INVOICE"
+      ],
+      "detected": [
+        "DUPLICATE_INVOICE"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.078
+    },
+    {
+      "case_id": "C05",
+      "description": "Missing POD - no proof of delivery provided",
+      "expected": [
+        "EVIDENCE_MISSING"
+      ],
+      "detected": [
+        "EVIDENCE_MISSING"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.044
+    },
+    {
+      "case_id": "C06",
+      "description": "Identifier mismatch - invoice references a different PO",
+      "expected": [
+        "IDENTIFIER_MISMATCH"
+      ],
+      "detected": [
+        "IDENTIFIER_MISMATCH"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.05
+    },
+    {
+      "case_id": "C07",
+      "description": "Partial shipment - delivered 600 of ordered 800",
+      "expected": [
+        "PARTIAL_SHIPMENT"
+      ],
+      "detected": [
+        "PARTIAL_SHIPMENT"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.054
+    },
+    {
+      "case_id": "C08",
+      "description": "Timeline inconsistency - invoice dated before ship date",
+      "expected": [
+        "TIMELINE_INCONSISTENCY"
+      ],
+      "detected": [
+        "TIMELINE_INCONSISTENCY"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.07
+    },
+    {
+      "case_id": "C09",
+      "description": "Multi-exception - quantity mismatch AND missing POD",
+      "expected": [
+        "EVIDENCE_MISSING",
+        "QUANTITY_MISMATCH"
+      ],
+      "detected": [
+        "EVIDENCE_MISSING",
+        "QUANTITY_MISMATCH"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.043
+    },
+    {
+      "case_id": "C10",
+      "description": "Ambiguous - documents conflict with each other; human review required",
+      "expected": [
+        "QUANTITY_MISMATCH"
+      ],
+      "detected": [
+        "QUANTITY_MISMATCH"
+      ],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.052
+    },
+    {
+      "case_id": "C11",
+      "description": "Clean shipment - second clean case (different volumes)",
+      "expected": [],
+      "detected": [],
+      "correct": true,
+      "extraction_succeeded": true,
+      "latency_s": 0.05
+    }
+  ],
+  "notes": [
+    "Local pipeline on generated controlled PDFs; Textract/Bedrock measurements pending AWS deployment.",
+    "Latency covers upload+extraction+investigation per case on the sandbox machine; not an AWS production figure."
+  ]
+}
