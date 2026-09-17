@@ -1,0 +1,39 @@
+{
+  "case_id": "C09",
+  "description": "Multi-exception - quantity mismatch AND missing POD",
+  "notes": "",
+  "shipment": {
+    "external_reference": "SHI-2026-0009",
+    "purchase_order_id": "PO-2026-0009",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C09/PO_SHI-2026-0009.pdf",
+    "BOL": "C09/BOL_SHI-2026-0009.pdf",
+    "INVOICE": "C09/INVOICE_SHI-2026-0009.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 815.0,
+    "pod_qty_kg": null,
+    "invoice_qty_kg": 840.0,
+    "unit_price_usd": 12.5,
+    "invoice_amount_usd": 10500.0
+  },
+  "injected_anomalies": [
+    "Multi-exception - quantity mismatch AND missing POD"
+  ],
+  "expected_exception_types": [
+    "QUANTITY_MISMATCH",
+    "EVIDENCE_MISSING"
+  ],
+  "expected_affected_fields": [
+    "quantity",
+    "POD"
+  ],
+  "expected_requires_human_review": true,
+  "synthetic": true
+}

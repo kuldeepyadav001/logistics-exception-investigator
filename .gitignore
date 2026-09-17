@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Node / web
+node_modules/
+dist/
+apps/web/dist/
+
+# Runtime state (local backends) — never commit
+data/runtime/
+*.sqlite3
+
+# Secrets — NEVER commit credentials (dossier §15)
+.env
+.env.*
+*.pem
+!data/fixtures/**
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo

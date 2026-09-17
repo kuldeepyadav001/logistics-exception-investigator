@@ -1,0 +1,40 @@
+{
+  "case_id": "C04",
+  "description": "Duplicate invoice - vendor resubmits same invoice number and amount on a later date",
+  "notes": "",
+  "shipment": {
+    "external_reference": "SHI-2026-0004",
+    "purchase_order_id": "PO-2026-0004",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C04/PO_SHI-2026-0004.pdf",
+    "BOL": "C04/BOL_SHI-2026-0004.pdf",
+    "POD": "C04/POD_SHI-2026-0004.pdf",
+    "INVOICE": "C04/INVOICE_SHI-2026-0004.pdf",
+    "INVOICE_2": "C04/INVOICE_2_SHI-2026-0004.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 800.0,
+    "pod_qty_kg": 800.0,
+    "invoice_qty_kg": 800.0,
+    "unit_price_usd": 12.5,
+    "invoice_amount_usd": 10000.0
+  },
+  "injected_anomalies": [
+    "Duplicate invoice - vendor resubmits same invoice number and amount on a later date"
+  ],
+  "expected_exception_types": [
+    "DUPLICATE_INVOICE"
+  ],
+  "expected_affected_fields": [
+    "invoice_number",
+    "amount"
+  ],
+  "expected_requires_human_review": true,
+  "synthetic": true
+}

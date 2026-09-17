@@ -1,0 +1,38 @@
+{
+  "case_id": "C06",
+  "description": "Identifier mismatch - invoice references a different PO",
+  "notes": "",
+  "shipment": {
+    "external_reference": "SHI-2026-0006",
+    "purchase_order_id": "PO-2026-0006",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C06/PO_SHI-2026-0006.pdf",
+    "BOL": "C06/BOL_SHI-2026-0006.pdf",
+    "POD": "C06/POD_SHI-2026-0006.pdf",
+    "INVOICE": "C06/INVOICE_SHI-2026-0006.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 800.0,
+    "pod_qty_kg": 800.0,
+    "invoice_qty_kg": 800.0,
+    "unit_price_usd": 12.5,
+    "invoice_amount_usd": 10000.0
+  },
+  "injected_anomalies": [
+    "Identifier mismatch - invoice references a different PO"
+  ],
+  "expected_exception_types": [
+    "IDENTIFIER_MISMATCH"
+  ],
+  "expected_affected_fields": [
+    "po_number"
+  ],
+  "expected_requires_human_review": true,
+  "synthetic": true
+}

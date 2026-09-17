@@ -1,0 +1,38 @@
+{
+  "case_id": "C02",
+  "description": "CANONICAL DEMO CASE - invoice exceeds delivered quantity",
+  "notes": "PO 800 kg / BOL 815 kg / POD 815 kg / INVOICE 840 kg (dossier \u00a73, \u00a726).",
+  "shipment": {
+    "external_reference": "SHI-2026-0002",
+    "purchase_order_id": "PO-2026-0002",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C02/PO_SHI-2026-0002.pdf",
+    "BOL": "C02/BOL_SHI-2026-0002.pdf",
+    "POD": "C02/POD_SHI-2026-0002.pdf",
+    "INVOICE": "C02/INVOICE_SHI-2026-0002.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 815.0,
+    "pod_qty_kg": 815.0,
+    "invoice_qty_kg": 840.0,
+    "unit_price_usd": 12.5,
+    "invoice_amount_usd": 10500.0
+  },
+  "injected_anomalies": [
+    "CANONICAL DEMO CASE - invoice exceeds delivered quantity"
+  ],
+  "expected_exception_types": [
+    "QUANTITY_MISMATCH"
+  ],
+  "expected_affected_fields": [
+    "quantity"
+  ],
+  "expected_requires_human_review": true,
+  "synthetic": true
+}

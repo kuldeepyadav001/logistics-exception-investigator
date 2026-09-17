@@ -1,0 +1,34 @@
+{
+  "case_id": "C01",
+  "description": "Clean shipment - all documents agree",
+  "notes": "All quantities 800 kg; amount consistent (800 x 12.50).",
+  "shipment": {
+    "external_reference": "SHI-2026-0001",
+    "purchase_order_id": "PO-2026-0001",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C01/PO_SHI-2026-0001.pdf",
+    "BOL": "C01/BOL_SHI-2026-0001.pdf",
+    "POD": "C01/POD_SHI-2026-0001.pdf",
+    "INVOICE": "C01/INVOICE_SHI-2026-0001.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 800.0,
+    "pod_qty_kg": 800.0,
+    "invoice_qty_kg": 800.0,
+    "unit_price_usd": 12.5,
+    "invoice_amount_usd": 10000.0
+  },
+  "injected_anomalies": [
+    "Clean shipment - all documents agree"
+  ],
+  "expected_exception_types": [],
+  "expected_affected_fields": [],
+  "expected_requires_human_review": false,
+  "synthetic": true
+}

@@ -1,0 +1,38 @@
+{
+  "case_id": "C10",
+  "description": "Ambiguous - documents conflict with each other; human review required",
+  "notes": "BOL says 815, POD says 600: delivered quantity itself is disputed. System must present the conflict, not pick a winner.",
+  "shipment": {
+    "external_reference": "SHI-2026-0010",
+    "purchase_order_id": "PO-2026-0010",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C10/PO_SHI-2026-0010.pdf",
+    "BOL": "C10/BOL_SHI-2026-0010.pdf",
+    "POD": "C10/POD_SHI-2026-0010.pdf",
+    "INVOICE": "C10/INVOICE_SHI-2026-0010.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 815.0,
+    "pod_qty_kg": 600.0,
+    "invoice_qty_kg": 815.0,
+    "unit_price_usd": 12.5,
+    "invoice_amount_usd": 10187.5
+  },
+  "injected_anomalies": [
+    "Ambiguous - documents conflict with each other; human review required"
+  ],
+  "expected_exception_types": [
+    "QUANTITY_MISMATCH"
+  ],
+  "expected_affected_fields": [
+    "quantity"
+  ],
+  "expected_requires_human_review": true,
+  "synthetic": true
+}

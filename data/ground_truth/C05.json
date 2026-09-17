@@ -1,0 +1,37 @@
+{
+  "case_id": "C05",
+  "description": "Missing POD - no proof of delivery provided",
+  "notes": "",
+  "shipment": {
+    "external_reference": "SHI-2026-0005",
+    "purchase_order_id": "PO-2026-0005",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C05/PO_SHI-2026-0005.pdf",
+    "BOL": "C05/BOL_SHI-2026-0005.pdf",
+    "INVOICE": "C05/INVOICE_SHI-2026-0005.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 800.0,
+    "pod_qty_kg": null,
+    "invoice_qty_kg": 800.0,
+    "unit_price_usd": 12.5,
+    "invoice_amount_usd": 10000.0
+  },
+  "injected_anomalies": [
+    "Missing POD - no proof of delivery provided"
+  ],
+  "expected_exception_types": [
+    "EVIDENCE_MISSING"
+  ],
+  "expected_affected_fields": [
+    "POD"
+  ],
+  "expected_requires_human_review": true,
+  "synthetic": true
+}
