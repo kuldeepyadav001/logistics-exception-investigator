@@ -38,6 +38,11 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 cd apps/web && npm ci --no-audit --no-fund && cd ..
 git config user.name "LEI Build Agent" && git config user.email "build@lei.local"
 chmod 600 /home/user/.ssh/id_ed25519_lei
+# .git/config is snapshot-excluded → restore remote if missing:
+git remote get-url origin 2>/dev/null || \
+  git remote add origin git@github.com:kuldeepyadav001/logistics-exception-investigator.git
+# no ~/.ssh/config after rebuild → push with explicit key:
+GIT_SSH_COMMAND='ssh -i /home/user/.ssh/id_ed25519_lei -o IdentitiesOnly=yes' git push origin main
 .venv/bin/python -m pytest tests/ -q   # expect 55 passing
 ```
 
