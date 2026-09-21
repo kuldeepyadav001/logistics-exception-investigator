@@ -22,8 +22,9 @@
     "bol_qty_kg": 800.0,
     "pod_qty_kg": 800.0,
     "invoice_qty_kg": 800.0,
-    "unit_price_usd": 12.5,
-    "invoice_amount_usd": 10000.0
+    "unit_price": 12.5,
+    "invoice_amount": 10000.0,
+    "currency": "USD"
   },
   "injected_anomalies": [
     "Duplicate invoice - vendor resubmits same invoice number and amount on a later date"

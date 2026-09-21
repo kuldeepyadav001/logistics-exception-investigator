@@ -1,0 +1,20 @@
+services:
+  lei:
+    build: .
+    container_name: lei
+    ports:
+      - "8000:8000"
+    environment:
+      LEI_DATA_DIR: /data
+      # AI investigation layer (all optional; deterministic fallback built in):
+      #   LEI_LLM_PROVIDER: none | anthropic | openai
+      LEI_LLM_PROVIDER: ${LEI_LLM_PROVIDER:-none}
+      LEI_LLM_API_KEY: ${LEI_LLM_API_KEY:-}
+      LEI_LLM_MODEL: ${LEI_LLM_MODEL:-}
+      LEI_LLM_BASE_URL: ${LEI_LLM_BASE_URL:-}
+    volumes:
+      - lei-data:/data
+    restart: unless-stopped
+
+volumes:
+  lei-data:

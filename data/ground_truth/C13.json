@@ -1,0 +1,39 @@
+{
+  "case_id": "C13",
+  "description": "Amount mismatch in INR - invoice 52,000 vs 100 x 500 = 50,000",
+  "notes": "Proves explicit currency handling (no silent cross-currency arithmetic).",
+  "shipment": {
+    "external_reference": "SHI-2026-0013",
+    "purchase_order_id": "PO-2026-0013",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C13/PO_SHI-2026-0013.pdf",
+    "BOL": "C13/BOL_SHI-2026-0013.pdf",
+    "POD": "C13/POD_SHI-2026-0013.pdf",
+    "INVOICE": "C13/INVOICE_SHI-2026-0013.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 500.0,
+    "bol_qty_kg": 500.0,
+    "pod_qty_kg": 500.0,
+    "invoice_qty_kg": 500.0,
+    "unit_price": 100.0,
+    "invoice_amount": 52000.0,
+    "currency": "INR"
+  },
+  "injected_anomalies": [
+    "Amount mismatch in INR - invoice 52,000 vs 100 x 500 = 50,000"
+  ],
+  "expected_exception_types": [
+    "AMOUNT_MISMATCH"
+  ],
+  "expected_affected_fields": [
+    "amount"
+  ],
+  "expected_requires_human_review": true,
+  "synthetic": true
+}

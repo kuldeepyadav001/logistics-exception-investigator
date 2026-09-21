@@ -1,0 +1,35 @@
+{
+  "case_id": "C12",
+  "description": "Clean with unit variation - BOL in tonnes (0.8 t) must normalize to 800 kg, no false positive",
+  "notes": "Proves canonical-unit normalization end-to-end (Blueprint \u00a722 Step 1).",
+  "shipment": {
+    "external_reference": "SHI-2026-0012",
+    "purchase_order_id": "PO-2026-0012",
+    "carrier_id": "BLUELINE LOGISTICS",
+    "vendor_id": "ACME FREIGHT CO",
+    "origin": "MUMBAI",
+    "destination": "DELHI"
+  },
+  "documents": {
+    "PO": "C12/PO_SHI-2026-0012.pdf",
+    "BOL": "C12/BOL_SHI-2026-0012.pdf",
+    "POD": "C12/POD_SHI-2026-0012.pdf",
+    "INVOICE": "C12/INVOICE_SHI-2026-0012.pdf"
+  },
+  "expected_values": {
+    "ordered_qty_kg": 800.0,
+    "bol_qty_kg": 800.0,
+    "pod_qty_kg": 800.0,
+    "invoice_qty_kg": 800.0,
+    "unit_price": 12.5,
+    "invoice_amount": 10000.0,
+    "currency": "USD"
+  },
+  "injected_anomalies": [
+    "Clean with unit variation - BOL in tonnes (0.8 t) must normalize to 800 kg, no false positive"
+  ],
+  "expected_exception_types": [],
+  "expected_affected_fields": [],
+  "expected_requires_human_review": false,
+  "synthetic": true
+}

@@ -21,8 +21,9 @@
     "bol_qty_kg": 600.0,
     "pod_qty_kg": 600.0,
     "invoice_qty_kg": 600.0,
-    "unit_price_usd": 12.5,
-    "invoice_amount_usd": 7500.0
+    "unit_price": 12.5,
+    "invoice_amount": 7500.0,
+    "currency": "USD"
   },
   "injected_anomalies": [
     "Partial shipment - delivered 600 of ordered 800"

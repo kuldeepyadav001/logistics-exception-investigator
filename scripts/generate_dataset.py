@@ -41,6 +41,8 @@ class CaseSpec:
     include_pod: bool = True
     second_invoice: bool = False
     second_invoice_date: str | None = None  # resubmission date (makes the doc distinct in bytes)
+    currency: str = "USD"
+    bol_qty_display: str | None = None  # raw display value for the BOL quantity line
     invoice_po_number: str | None = None  # default matches PO
     ship_date: str = "2026-09-05"
     delivery_date: str = "2026-09-09"
@@ -80,8 +82,8 @@ def _qty_str(v: float) -> str:
     return f"{v:.0f} kg" if float(v).is_integer() else f"{v} kg"
 
 
-def _money(v: float) -> str:
-    return f"USD {v:,.2f}"
+def _money(v: float, currency: str = "USD") -> str:
+    return f"{currency} {v:,.2f}"
 
 
 def build_case(spec: CaseSpec) -> dict:
@@ -104,14 +106,14 @@ def build_case(spec: CaseSpec) -> dict:
             ("ORIGIN", ORIGIN),
             ("DESTINATION", DESTINATION),
             ("ORDERED QUANTITY", _qty_str(spec.ordered_qty)),
-            ("UNIT PRICE (PER KG)", _money(spec.unit_price)),
+            ("UNIT PRICE (PER KG)", _money(spec.unit_price, spec.currency)),
             ("EXPECTED DELIVERY DATE", spec.delivery_date),
         ],
         "BOL": [
             ("SHIPMENT REFERENCE", shipment_ref),
             ("PURCHASE ORDER NUMBER", po_number),
             ("CARRIER", CARRIER),
-            ("GROSS WEIGHT", _qty_str(spec.bol_qty)),
+            ("GROSS WEIGHT", spec.bol_qty_display or _qty_str(spec.bol_qty)),
             ("SHIP DATE", spec.ship_date),
         ],
         "POD": [
@@ -126,8 +128,8 @@ def build_case(spec: CaseSpec) -> dict:
             ("SHIPMENT REFERENCE", shipment_ref),
             ("VENDOR", VENDOR),
             ("BILLED QUANTITY", _qty_str(spec.invoice_qty)),
-            ("UNIT PRICE (PER KG)", _money(spec.unit_price)),
-            ("TOTAL AMOUNT", _money(invoice_amount)),
+            ("UNIT PRICE (PER KG)", _money(spec.unit_price, spec.currency)),
+            ("TOTAL AMOUNT", _money(invoice_amount, spec.currency)),
             ("INVOICE DATE", spec.invoice_date),
         ],
     }
@@ -260,6 +262,36 @@ CASES: list[CaseSpec] = [
         expected_exception_types=[],
         requires_human_review=False,
     ),
+    CaseSpec(
+        "C12",
+        "Clean with unit variation - BOL in tonnes (0.8 t) must normalize to 800 kg, no false positive",
+        bol_qty_display="0.8 t",
+        expected_exception_types=[],
+        requires_human_review=False,
+        notes="Proves canonical-unit normalization end-to-end (Blueprint §22 Step 1).",
+    ),
+    CaseSpec(
+        "C13",
+        "Amount mismatch in INR - invoice 52,000 vs 100 x 500 = 50,000",
+        ordered_qty=500.0,
+        bol_qty=500.0,
+        pod_qty=500.0,
+        invoice_qty=500.0,
+        unit_price=100.0,
+        invoice_amount=52_000.0,
+        currency="INR",
+        expected_exception_types=["AMOUNT_MISMATCH"],
+        expected_affected_fields=["amount"],
+        notes="Proves explicit currency handling (no silent cross-currency arithmetic).",
+    ),
+    CaseSpec(
+        "C14",
+        "Multi-exception - identifier mismatch AND missing POD",
+        invoice_po_number="PO-2026-9914",
+        include_pod=False,
+        expected_exception_types=["IDENTIFIER_MISMATCH", "EVIDENCE_MISSING"],
+        expected_affected_fields=["po_number", "POD"],
+    ),
 ]
 
 
@@ -295,8 +327,9 @@ def main() -> None:
                 "bol_qty_kg": spec.bol_qty,
                 "pod_qty_kg": spec.pod_qty if spec.include_pod else None,
                 "invoice_qty_kg": spec.invoice_qty,
-                "unit_price_usd": spec.unit_price,
-                "invoice_amount_usd": result["metadata"]["invoice_amount"],
+                "unit_price": spec.unit_price,
+                "invoice_amount": result["metadata"]["invoice_amount"],
+                "currency": spec.currency,
             },
             "injected_anomalies": [spec.description],
             "expected_exception_types": spec.expected_exception_types,

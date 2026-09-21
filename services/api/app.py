@@ -24,6 +24,7 @@ from typing import Optional
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from domain.models import (
@@ -46,6 +47,7 @@ from infrastructure.db.local import AppRepository
 from infrastructure.storage.local import LocalDocumentStore
 from services.extraction.local import LocalExtractor
 from services.investigation.local import build_investigation
+from services.investigation.llm import InvestigationLLM, make_investigation_llm
 from services.reconciliation.checks import (
     ReconciliationConfig,
     ShipmentContext,
@@ -53,6 +55,20 @@ from services.reconciliation.checks import (
 )
 
 logger = logging.getLogger("lei.api")
+
+_BUSINESS_RULES = [
+    "Invoice quantity must not exceed the verified delivered quantity (BOL/POD).",
+    "Invoice amount must equal unit price × billed quantity.",
+    "Every payment-relevant resolution requires a human decision.",
+]
+_ALLOWED_ACTIONS = [
+    "hold_payment",
+    "request_corrected_invoice",
+    "request_credit_note",
+    "request_missing_document",
+    "verify_with_carrier",
+    "verify_with_vendor",
+]
 
 ALLOWED_CONTENT_TYPES = {
     "application/pdf": ".pdf",
@@ -93,12 +109,14 @@ def create_app(
     store: Optional[LocalDocumentStore] = None,
     extractor: Optional[LocalExtractor] = None,
     config: Optional[ReconciliationConfig] = None,
+    llm: Optional[InvestigationLLM] = None,
 ) -> FastAPI:
     data_dir = Path(os.environ.get("LEI_DATA_DIR", "data/runtime"))
     repo = repo or AppRepository(data_dir / "app.sqlite3")
     store = store or LocalDocumentStore(data_dir / "documents")
     extractor = extractor or LocalExtractor()
     config = config or ReconciliationConfig()
+    llm = llm or make_investigation_llm()
 
     app = FastAPI(
         title="Logistics Exception Investigator API",
@@ -109,6 +127,7 @@ def create_app(
     app.state.store = store
     app.state.extractor = extractor
     app.state.config = config
+    app.state.llm = llm
 
     app.add_middleware(
         CORSMiddleware,
@@ -298,7 +317,37 @@ def create_app(
                     for ef in all_evidence
                     if ef.document_id in _document_ids_in_findings(ex)
                 ]
-                investigation = build_investigation(ex, snapshot or all_evidence)
+                bundle_snapshot = snapshot or all_evidence
+                investigation = build_investigation(ex, bundle_snapshot)
+                # AI layer (if configured): evidence-constrained, schema-validated.
+                # Any failure/invalid output → keep the deterministic version.
+                if llm.ready:
+                    llm_out, meta = llm.run(
+                        shipment=shipment.model_dump(mode="json"),
+                        documents=[d.model_dump(mode="json") for d in documents],
+                        normalized_evidence=[
+                            ef.model_dump(mode="json") for ef in bundle_snapshot
+                        ],
+                        deterministic_findings=[
+                            f.model_dump(mode="json") for f in ex.deterministic_findings
+                        ],
+                        business_rules=_BUSINESS_RULES,
+                        allowed_actions=_ALLOWED_ACTIONS,
+                    )
+                    if llm_out is not None:
+                        investigation.ai_summary = llm_out.summary
+                        investigation.plausible_causes = llm_out.plausible_causes
+                        investigation.recommended_action = (
+                            llm_out.recommended_action
+                        )
+                        investigation.uncertainty = llm_out.reasoning_limitations
+                        investigation.model_metadata = meta
+                    else:
+                        # rejected output: record why, keep deterministic results
+                        investigation.model_metadata = {
+                            **investigation.model_metadata,
+                            **meta,
+                        }
                 repo.save_investigation(investigation)
                 ex.status = ExceptionStatus.PENDING_REVIEW
                 ex.updated_at = utcnow()
@@ -332,7 +381,7 @@ def create_app(
                 "s3": "aws" if aws_configured else "local-filesystem",
                 "dynamodb": "aws" if aws_configured else "sqlite",
                 "textract": "aws" if aws_configured else "local-controlled-parser",
-                "bedrock": "aws" if aws_configured else "deterministic-rules",
+                "llm_investigation": llm.provider.name if llm.ready else "deterministic-rules",
             },
         }
 
@@ -565,3 +614,9 @@ def _document_ids_in_findings(ex: Exception) -> set[str]:
 
 
 app = create_app()
+
+# Static SPA (production build) — single-container deployment (Docker):
+# API routes registered above take precedence; everything else serves the UI.
+_DIST = Path(__file__).resolve().parents[2] / "apps" / "web" / "dist"
+if _DIST.is_dir():
+    app.mount("/", StaticFiles(directory=_DIST, html=True), name="ui")

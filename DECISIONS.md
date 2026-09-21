@@ -71,3 +71,21 @@ Format: decision / context / alternatives / rationale / consequences / reversal.
 - **Decision:** Upload idempotency = byte-identical file (checksum) for same shipment+type → skip reprocessing (Blueprint §27). Duplicate **invoice** = two registered invoices sharing (invoice_number, amount) → exception. Synthetic C04 models the realistic case: same number+amount resubmitted on a later date (distinct bytes).
 - **Context:** A byte-identical re-upload that we also flagged as a "duplicate invoice exception" would confuse the demo (it's the user re-clicking, not a billing error).
 - **Reversal:** Rule is isolated in `upload_document` + `_check_duplicate_invoices`.
+## ADR-011 — Pivot: hackathon window closed → company/pilot track (2026-09-21)
+
+- **Decision:** The First Commit window (Sep 17–20) closed without submission (laptop lost Sep 19; AWS account never created). Per the dossier's two-narrative strategy (§2), the project's primary objective is now **Narrative B: company pilot** — the same prototype, finished to pilot-grade standard.
+- **Context:** Dossier §41: the hackathon and company goals are separate gates; the strategic goal was "one technically credible, measurable prototype" serving both. Nothing technical was lost: 55 tests, 14/14 measured evaluation, public repo, full project memory.
+- **Consequences:**
+  - Deployment target becomes **portable first**: single Docker container that runs anywhere (any laptop/VM/cloud) — AWS becomes optional, not a dependency.
+  - The AI layer becomes **provider-pluggable** (ADR-012) instead of Bedrock-only.
+  - Deliverables shift: pitch kit + pilot design + hardened demo replace video/write-up/submission.
+  - The repo's Sep-17–20 history is honest and useful (shows real engineering velocity); no relabeling.
+- **Reversal:** If an AWS account exists later, the AWS adapters (ADR-001) can still be added behind the same interfaces; the Docker path remains valid either way.
+
+## ADR-012 — Pluggable LLM investigation layer (no hard cloud dependency)
+
+- **Decision:** The AI investigation layer is a provider-agnostic adapter: `LEI_LLM_PROVIDER=none|anthropic|openai` + key via env (works with any OpenAI-compatible base URL, incl. local models). Default `none` → deterministic rule-table investigation. Output is always schema-validated; invalid model output is rejected and the deterministic result is used; `requires_human_review` is forced true.
+- **Context:** Company track = the demo must work in ANY environment a pitch counterpart provides (or our own box). Bedrock-only would make the AI demo hostage to an AWS account.
+- **Rationale:** Keeps the §23 contract (controlled input, structured output, no invented evidence, no autonomous action) while making the AI layer demonstrable with a $5 API key.
+- **Consequences:** AWS deployment (later, if desired) adds a Bedrock provider implementing the same protocol — additive.
+- **Reversal:** Env change only; the deterministic core is untouched.

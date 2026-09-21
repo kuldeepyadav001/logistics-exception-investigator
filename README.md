@@ -2,89 +2,98 @@
 
 > **Don't automate the document. Automate the investigation.**
 
-AI-assisted **shipment exception investigation layer**: turns conflicting shipment records (PO / BOL / POD / Invoice) into an evidence-backed case → recommended action → **human decision** → audit trail.
+An AI-assisted **shipment exception investigation layer**: turns conflicting
+shipment records (PO / BOL / POD / Invoice) into an evidence-backed case →
+recommended action → **human decision** → audit trail.
 
-- **Source of truth:** [Master Project Dossier (Notion)](https://app.notion.com/p/Logistics-Exception-Investigator-Master-Project-Dossier-3d77a721f05c813488e1e92ad20881a9) — this repo's docs are derived from it.
-- **Event:** AWS Bharat Builds Tour / First Commit, **Sept 17–20, 2026**. Per event rules, this repository's history starts **2026-09-17** (judged work). Pre-event work = research/planning only (see the dossier).
-- **AI tools used:** built with an AI coding assistant (disclosed per event rules for the submission write-up).
+It sits **alongside** your TMS/ERP/AP — it does not replace them. Every fact is
+computed deterministically and traceable to a source document line; the AI
+layer (optional, any provider) only interprets evidence, never invents it;
+schema-invalid AI output is rejected; consequential resolution always requires
+a human decision.
 
-## Status
+- **Source of truth:** [Master Project Dossier (Notion)](https://app.notion.com/p/Logistics-Exception-Investigator-Master-Project-Dossier-3d77a721f05c813488e1e92ad20881a9) — repo docs derive from it.
+- **Status:** pilot-grade prototype — 55 tests, 14/14 measured evaluation cases
+  (P/R/F1 = 1.0), one-command Docker demo. See `docs/company-pitch.md`.
+- **AI tools used:** built with an AI coding assistant (disclosed per
+  transparency norms); all logic reviewed and test-covered.
 
-| Phase (Blueprint §28) | Status |
-| --- | --- |
-| 0 — Pre-event prep (dossier, contracts, dataset design) | ✅ complete (dossier + this repo's contracts) |
-| 1 — Foundation (repo, API, storage, config, logging) | ✅ complete, tested |
-| 2 — Evidence pipeline (upload → extract → normalize) | ✅ local (controlled parser); Textract adapter pending AWS account |
-| 3 — Reconciliation engine (deterministic checks, **no LLM**) | ✅ complete — 11/11 ground-truth cases pass |
-| 4 — Investigation intelligence | 🟡 deterministic investigation live; **Bedrock adapter pending AWS account** |
-| 5 — Human resolution + audit | ✅ API + state machine + audit trail (UI pending) |
-| 6 — Evaluation & hardening | 🟡 ground-truth harness live (11/11); baseline experiment + latency/cost pending |
-| 7 — Deployment & demo |  pending AWS account + frontend |
-
-**Current state:** `BUILDING` — backend core is working end-to-end locally with real generated PDFs. Blocked items need the AWS account (see `docs/AWS-SETUP.md`).
-
-## Quickstart
+## Quick start (Docker — one container, one port, any machine)
 
 ```bash
-# backend
+docker compose up -d --build
+# → http://localhost:8000  (web UI + API + one-click demo seed)
+curl -X POST "localhost:8000/demo/seed?case_id=C02"
+```
+
+Then open http://localhost:8000 → **⚡ Load demo case C02** and watch:
+conflict (800/815/815/840 kg) → deterministic detection (+25 kg, exposure
+$312.50) → evidence lines → investigation → recommended action → human
+decision → audit trail.
+
+Optional AI investigation layer (any provider, env-configured, ADR-012):
+
+```bash
+# Anthropic:
+LEI_LLM_PROVIDER=anthropic LEI_LLM_API_KEY=*** LEI_LLM_MODEL=claude-sonnet-4-20250514 docker compose up -d
+# or any OpenAI-compatible endpoint:
+LEI_LLM_PROVIDER=openai LEI_LLM_API_KEY=*** LEI_LLM_MODEL=gpt-4o docker compose up -d
+```
+
+Without a key, the deterministic rule-table investigation runs — by design the
+system works with or without the AI layer.
+
+## Local development
+
+```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m pytest -q                    # 36 tests
-LEI_DATA_DIR=data/runtime .venv/bin/uvicorn services.api.app:app --port 8000
-# API at http://localhost:8000 (docs at /docs)
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -q                                  # 55 tests
+LEI_DATA_DIR=data/runtime .venv/bin/python -m uvicorn services.api.app:app --port 8000
+# API at http://localhost:8000 (OpenAPI at /docs)
 
-# regenerate the synthetic dataset (idempotent)
-.venv/bin/python -m scripts.generate_dataset
+.venv/bin/python -m scripts.generate_dataset                   # regenerate 14-case dataset
+.venv/bin/python -m scripts.run_evaluation                     # measured evaluation report
+.venv/bin/python -m scripts.baseline_experiment                # baseline timing sheet
 
-# frontend (React + Vite + Tailwind)
-cd apps/web && npm install && npm run dev        # http://localhost:5173, proxies /api → :8000
+cd apps/web && npm ci && npm run dev                           # UI at :5173 (proxies /api)
 ```
 
-### Try the canonical demo case via curl
-
-```bash
-SID=$(.venv/bin/python - <<'EOF'
-import requests  # or use curl; see docs/api.md for the full flow
-EOF
-)
-```
-
-Full walkthrough with exact commands: `docs/api.md`. The hero case is `data/synthetic/C02` (PO 800 kg / BOL 815 kg / POD 815 kg / Invoice 840 kg).
-
-## Repository layout (Blueprint §32 + ADR-003)
+## Repository layout
 
 ```
-domain/                    canonical models (Shipment, Document, EvidenceField,
-                           Exception, Investigation, Decision, AuditEvent)
-services/
-  api/                     HTTP API — the 8 contract endpoints (Blueprint §24)
-  extraction/              controlled "LABEL: value" extractor (Textract stand-in)
-  reconciliation/          normalize → checks → variance → severity (pure deterministic)
-  investigation/           evidence-constrained investigation (Bedrock stand-in)
-infrastructure/
-  storage/                 DocumentStore (S3 semantics; local FS backend)
-  db/                      AppRepository (DynamoDB semantics; SQLite backend)
-apps/web/                  React + TypeScript + Vite + Tailwind (4-screen MVP)
-data/
-  synthetic/               generated document families (labeled SYNTHETIC)
-  ground_truth/            machine-readable expected results per case
-  runtime/                 local backends (gitignored)
-tests/
-  unit/ integration/ evaluation/
-docs/                      architecture, api, data-model, evaluation, AWS-SETUP
-PROJECT-STATE.md           current reality (phase, done, blocked, next)
-DECISIONS.md               ADRs
-RISKS.md BACKLOG.md NEXT-ACTIONS.md
+apps/web                  React + Vite + Tailwind — 4 screens (Blueprint §25)
+services/api              FastAPI — Blueprint §24 contract + /demo/seed + /health
+services/extraction       Controlled local extractor (Textract-shaped contract)
+services/reconciliation   Deterministic checks: normalization, matching, variance,
+                          duplicates, thresholds (Blueprint §22)
+services/investigation    Deterministic investigation + pluggable LLM layer (§23)
+infrastructure            Local adapters (SQLite, filesystem) — same interfaces as AWS
+domain                    Models + evidence contract (pydantic, validated)
+data/synthetic            14 machine-readable ground-truth cases (clearly synthetic)
+tests                     unit / integration (incl. failure paths) / evaluation
+docs                      architecture, API, data model, evaluation, pitch kit,
+                          ADRs (DECISIONS.md), AWS setup (optional path)
+scripts                   dataset generation, evaluation runner, baseline experiment
 ```
 
-## Core engineering rules (dossier §33, enforced in code)
+## Measured results
 
-1. Evidence before explanation — every conclusion references evidence or a deterministic rule.
-2. Deterministic facts before AI interpretation — the engine detects without any LLM.
-3. Human control before consequential action — every resolution is a human decision.
-4. Explicit uncertainty before fabricated confidence — unrecognized input → warning, never a guess.
-5. Raw evidence is immutable — AI conclusions reference evidence, never replace it.
+| Metric | Value | Source |
+| --- | --- | --- |
+| Evaluation cases | 14 (ground-truth, synthetic, labeled) | `data/ground_truth/` |
+| Detection (type-set exact) | **14/14** | `docs/evaluation-results-2026-09-21.json` |
+| Precision / recall / F1 | **1.0 / 1.0 / 1.0** | same |
+| End-to-end latency per case | **median 35 ms** (local) | same |
+| Automated tests | **55 passing** | `pytest` |
 
-## AWS
+Honest limitations: synthetic, clearly-labeled data; controlled document
+layouts; single-tenant; recommendation-only. A controlled pilot on real
+operational data is the next validation step (see `docs/company-pitch.md`).
 
-The system is **local-first by adapter design (ADR-001)**: S3/DynamoDB/Textract/Bedrock are behind interfaces with local backends so the full pipeline runs and tests today. AWS backends are dropped in when the account is ready — setup guide: **`docs/AWS-SETUP.md`**. The demo must show genuine AWS usage (event rule).
+## Optional AWS path
+
+The same code can run on S3 / DynamoDB / Textract / Bedrock / Lambda behind
+identical interfaces (ADR-001); setup instructions in `docs/AWS-SETUP.md`.
+This is **optional** — the local/Docker deployment is complete and is the
+default for demos and pilots (ADR-011).

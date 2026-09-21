@@ -1,15 +1,12 @@
-# Backend (Python 3.11+)
+# Runtime (production image)
 fastapi>=0.115
 uvicorn[standard]>=0.30
 pydantic>=2.7
 python-multipart>=0.0.9
+httpx>=0.27
 
 # Extraction (local stand-in for Textract)
 pypdf>=4.2
 
 # Synthetic document generation (Blueprint §26)
 fpdf2>=2.7
-
-# Testing
-pytest>=8.0
-httpx>=0.27

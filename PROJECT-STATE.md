@@ -1,52 +1,49 @@
-# PROJECT-STATE
+# PROJECT STATE — updated 2026-09-21 (COMPANY/PILOT TRACK)
 
-_Last updated: 2026-09-17 (Day 1 of First Commit, ~18:30 IST)_
+## Orientation
+Hackathon (First Commit, Sep 17–20) closed without submission (laptop lost Sep 19).
+Per dossier §2/§41, the project's objective is now **Narrative B: company pilot** —
+complete the project to company/industry standard for pitching other companies.
+See ADR-011 (pivot) and ADR-012 (pluggable LLM).
 
-**Current state:** `BUILDING` — Phase 1–3 ✅, Phase 4 local ✅, Phase 5 (API + UI) ✅, Phase 6 partial ✅ (metrics measured locally), Phase 7 blocked on AWS (user: **Sep 18**).
+## Current position (measured)
+- **Tests: 55/55 passing** (unit + integration + failure paths + LLM adapter).
+- **Evaluation: 14/14 synthetic cases, precision/recall/F1 = 1.0**, median 35 ms
+  (`docs/evaluation-results-2026-09-21.json`, committed). New: C12 unit
+  normalization (0.8 t), C13 INR currency handling, C14 multi-exception.
+- **AI investigation layer (ADR-012):** `services/investigation/llm.py` —
+  pluggable providers (Anthropic / any OpenAI-compatible / none), env-configured,
+  strict §23 schema validation, `requires_human_review` forced true,
+  deterministic fallback on ANY failure. Wired into the API; `/health` reports
+  the active backend. Default = deterministic (works with zero API keys).
+- **Docker (single container):** `Dockerfile` + `docker-compose.yml` —
+  multi-stage (React build → python:3.12-slim), UI served by the API on ONE
+  port (verified: `/` = UI, `/api`/`/health`/`/demo/seed` = JSON, assets 200).
+  `LEI_DATA_DIR=/data` volume. Runs anywhere; AWS no longer a dependency.
+- **Web UI:** 4 screens + one-click "⚡ Load demo case C02" (idempotent seed).
+- **Repo:** public, `github.com/kuldeepyadav001/logistics-exception-investigator`,
+  main = origin/main (pushed). Deploy key works (chmod 600 after rebuild).
 
-## Completed (with evidence)
+## Pitch assets (NEW)
+- `docs/company-pitch.md` — one-liner, 60-second demo script, measured-results
+  table, 4–6-week pilot proposal, 5-slide outline, say/don't-say (banned claims
+  per §26), demo-environment options.
+- `docs/baseline-experiment.md` — baseline methodology for pilot step 1.
+- `docs/writeup-draft.md` — adaptable for any external description.
 
-- **Repo initialized** 2026-09-17 (history = event dates, per rules).
-- **Canonical domain model** (Blueprint §21): 7 entities + enums.
-- **Infrastructure adapters** (ADR-001): local S3/DynamoDB semantics.
-- **HTTP API**: 8 contract endpoints + `/health` + **`POST /demo/seed`** (reproducible demo via the REAL pipeline; idempotent per case) + correlation IDs + uniform errors.
-- **Extraction** (local controlled parser, traceable fields) + **Reconciliation engine** (7 types, no LLM) + **Investigation** (evidence-constrained, rule-table local / Bedrock later) + **Decision state machine + audit**.
-- **Frontend**: 4 screens (Blueprint §25) incl. one-click **demo seed button**; strict TS production build passing.
-- **Synthetic dataset**: 11 cases + ground truth.
-- **Failure-path tests** (P1): corrupt PDF → FAILED (never invented), unparseable values → warning (no guess), ambiguous C10 → both values preserved + human review, terminal state → 409, unsupported type → 409.
-- **Demo assets**: architecture SVG (`docs/architecture.svg`), write-up draft, 3-min demo script, human-baseline experiment sheet.
-
-## MEASURED RESULTS (2026-09-17, local)
-
-- **11/11 cases fully correct · precision 1.0 · recall 1.0 · F1 1.0**
-- Latency per case: **median 52 ms** (min 41 / max 105) — local adapters
-- **45/45 tests passing**; report: `docs/evaluation-results-2026-09-17.json`
-
-## Waiting on (human)
-
-1. **GitHub repo URL** — repo created + deploy key added (user confirmed). Agent needs the exact clone URL (`git@github.com:OWNER/logistics-exception-investigator.git`) to push.
-2. **AWS** — user creates account + IAM user on **Sep 18** (guide: `docs/AWS-SETUP.md`). Region: ap-south-1.
-
-## Blocked
-
-- Phase 7 (AWS deployment, Textract/Bedrock live, AWS re-evaluation, demo recording) — **Sep 18**, by design.
-
-## Assumptions
-
-PDF-first (ADR-005), exact-match defaults (ADR-006), no auth in MVP (ADR-004), sync processing (ADR-008).
-
-## Next actions (ordered)
-
-1. **Push repo to GitHub** (need clone URL from user — 1 min once provided).
-2. Sep 18: AWS adapters (S3/DynamoDB/Textract/Bedrock) + deploy (Lambda/API GW/Amplify) + re-run evaluation on AWS → new MEASURED RESULT section.
-3. Sep 18–19: human baseline experiment (`docs/baseline-experiment.md`), Textract accuracy study on the 11 cases, cost/latency on AWS.
-4. Sep 19: demo recording per `docs/demo-script.md`; finalize `docs/writeup-draft.md`; submission (repo + video + write-up, early submit per rules).
-
-## Resume note (agent protocol)
-
-If the sandbox is rebuilt: source is fully in git. Re-provision with:
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cd apps/web && npm ci
+## Environment recovery (sandbox rebuilds wipe: .venv, node_modules, git identity)
 ```
-Then `pytest -q` must show 45 passed before continuing. Environment rebuilds have happened and been verified (this is the tested resume path).
+cd /home/user/logistics-exception-investigator
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+cd apps/web && npm ci --no-audit --no-fund && cd ..
+git config user.name "LEI Build Agent" && git config user.email "build@lei.local"
+chmod 600 /home/user/.ssh/id_ed25519_lei
+.venv/bin/python -m pytest tests/ -q   # expect 55 passing
+```
+
+## Next (company track — see BACKLOG.md)
+1. Optional: LLM smoke test with a real key when the user has one (env only).
+2. Optional: Docker image build verification in this sandbox (needs Docker).
+3. Optional: `apps/web` polish (empty states, loading) — only if time exists.
+4. When a laptop/VM is available: one-command demo rehearsal + first outreach
+   (drafts in dossier §36 / docs/company-pitch.md).

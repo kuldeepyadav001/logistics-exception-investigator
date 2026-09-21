@@ -21,8 +21,9 @@
     "bol_qty_kg": 815.0,
     "pod_qty_kg": 600.0,
     "invoice_qty_kg": 815.0,
-    "unit_price_usd": 12.5,
-    "invoice_amount_usd": 10187.5
+    "unit_price": 12.5,
+    "invoice_amount": 10187.5,
+    "currency": "USD"
   },
   "injected_anomalies": [
     "Ambiguous - documents conflict with each other; human review required"
