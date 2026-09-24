@@ -43,7 +43,41 @@ LEI_LLM_PROVIDER=openai LEI_LLM_API_KEY=*** LEI_LLM_MODEL=gpt-4o docker compose 
 Without a key, the deterministic rule-table investigation runs — by design the
 system works with or without the AI layer.
 
-## Local development
+### Free AI, no API key, no account (Ollama)
+
+The AI layer can run a **free local model** on the machine itself — zero cost:
+
+```bash
+# 1) install Ollama (https://ollama.com) and pull a small model:
+ollama pull llama3.2          # ~2 GB download, one time
+
+# 2) start the app pointing at it:
+LEI_LLM_PROVIDER=ollama docker compose up -d        # with Docker
+# — or without Docker (see below):
+LEI_LLM_PROVIDER=ollama python -m uvicorn services.api.app:app --port 8000
+```
+
+The deterministic engine always remains the source of facts; if the local
+model's output fails the strict schema check, the deterministic investigation
+is used instead (it never degrades the result, only the narration).
+
+## Local development (no Docker required)
+
+```bash
+git clone https://github.com/kuldeepyadav001/logistics-exception-investigator.git
+cd logistics-exception-investigator
+
+python3 -m venv .venv
+source .venv/bin/activate              # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+cd apps/web && npm ci && npm run build # builds the UI into apps/web/dist
+cd ..
+
+LEI_DATA_DIR=data/runtime python -m uvicorn services.api.app:app --port 8000
+# → http://localhost:8000  (UI + API; OpenAPI at /docs)
+# optional free AI:  LEI_LLM_PROVIDER=ollama  (see above)
+```
 
 ```bash
 python3 -m venv .venv

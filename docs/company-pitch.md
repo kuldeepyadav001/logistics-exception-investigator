@@ -94,6 +94,21 @@ domain model doesn't change (architecture: `docs/architecture.svg`).
 5. **The pilot** — 4–6 weeks, recommendation-only, one unit, baseline first,
    measured exit. The ask.
 
+## Where to find prospects (validation targets)
+
+Search LinkedIn / company sites for these titles at mid-size companies
+(100–5,000 staff, with in-house logistics or AP teams):
+
+- "freight audit" / "freight billing" manager
+- "invoice reconciliation" / "AP supervisor" (at manufacturers or 3PLs)
+- "logistics operations head" / "supply chain analyst" — automotive,
+  FMCG, pharma (Kanpur/NCR/UP corridor first, then national)
+- 3PL / TCS operators who already run TMS+ERP and still reconcile manually
+
+Lead with the validation message (this file, "The ask"), not a product demo.
+Send 2–3 per day, expect 10–20% reply rate; the goal is a 20-minute
+conversation, not a sale.
+
 ## Say / don't say
 
 - Say: "evidence-backed investigation layer", "measured on 14 controlled
@@ -107,10 +122,13 @@ domain model doesn't change (architecture: `docs/architecture.svg`).
 
 - **Any laptop with Docker** — `docker compose up -d --build`, 2 min, fully
   offline-capable (deterministic engine).
-- **With AI live:** set `LEI_LLM_PROVIDER=anthropic` (or `openai`) +
-  `LEI_LLM_API_KEY` + `LEI_LLM_MODEL` in the environment — the investigation
-  screen then shows a real model-generated, schema-validated summary. Without
-  a key, the deterministic investigation is shown and stated as such.
+- **Free AI, zero cost:** `ollama pull llama3.2` (local model, no account, no
+  key) + `LEI_LLM_PROVIDER=ollama` — the investigation screen shows a real
+  model-generated, schema-validated summary, entirely on the demo machine.
+- **Paid AI (if ever desired):** `LEI_LLM_PROVIDER=anthropic` (or `openai`) +
+  key + model via environment — same adapter, no code change.
+- **No AI at all:** the deterministic investigation is shown and stated as
+  such — the demo still makes the full point (facts, evidence, audit).
 - **AWS flavor (if a counterpart is AWS-aligned):** the same code runs on
   S3/DynamoDB/Textract/Bedrock/Lambda behind the identical interfaces
   (documented in the repo, `docs/AWS-SETUP.md`).

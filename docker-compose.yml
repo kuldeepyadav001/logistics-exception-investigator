@@ -7,11 +7,14 @@ services:
     environment:
       LEI_DATA_DIR: /data
       # AI investigation layer (all optional; deterministic fallback built in):
-      #   LEI_LLM_PROVIDER: none | anthropic | openai
+      #   LEI_LLM_PROVIDER: none | anthropic | openai | ollama
       LEI_LLM_PROVIDER: ${LEI_LLM_PROVIDER:-none}
       LEI_LLM_API_KEY: ${LEI_LLM_API_KEY:-}
       LEI_LLM_MODEL: ${LEI_LLM_MODEL:-}
-      LEI_LLM_BASE_URL: ${LEI_LLM_BASE_URL:-}
+      # Ollama default: reach the model running on the host machine (laptop).
+      LEI_LLM_BASE_URL: ${LEI_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - lei-data:/data
     restart: unless-stopped

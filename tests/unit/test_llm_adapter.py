@@ -10,6 +10,7 @@ from services.investigation.llm import (
     InvestigationLLM,
     LLMInvestigationOutput,
     _extract_json,
+    make_investigation_llm,
 )
 
 BUNDLE = {
@@ -119,3 +120,28 @@ def test_unconfigured_reports_none():
     assert out is None
     assert meta["provider"] == "none"
     assert "note" in meta
+
+
+def test_factory_default_is_off(monkeypatch):
+    for var in ("LEI_LLM_PROVIDER", "LEI_LLM_API_KEY", "LEI_LLM_MODEL", "LEI_LLM_BASE_URL"):
+        monkeypatch.delenv(var, raising=False)
+    assert not make_investigation_llm().ready
+
+
+def test_factory_openai_without_key_stays_off(monkeypatch):
+    monkeypatch.setenv("LEI_LLM_PROVIDER", "openai")
+    monkeypatch.delenv("LEI_LLM_API_KEY", raising=False)
+    assert not make_investigation_llm().ready
+
+
+def test_factory_ollama_needs_no_key(monkeypatch):
+    # the zero-cost path: local Ollama, no account, no API key
+    monkeypatch.setenv("LEI_LLM_PROVIDER", "ollama")
+    monkeypatch.delenv("LEI_LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LEI_LLM_MODEL", raising=False)
+    monkeypatch.delenv("LEI_LLM_BASE_URL", raising=False)
+    llm = make_investigation_llm()
+    assert llm.ready
+    assert llm.provider.name == "openai"  # OpenAI-compatible endpoint
+    assert llm.provider.model == "llama3.2"
+    assert llm.provider.base_url == "http://localhost:11434/v1"

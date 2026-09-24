@@ -5,10 +5,15 @@ config — no hard AWS dependency. Deterministic engine remains the trusted core
 the LLM only interprets evidence and recommends.
 
 Config (env):
-  LEI_LLM_PROVIDER = none | anthropic | openai      (default: none → deterministic only)
-  LEI_LLM_API_KEY  = provider API key (NEVER committed)
-  LEI_LLM_MODEL    = model id (e.g. claude-3-5-haiku-latest, gpt-4o-mini)
-  LEI_LLM_BASE_URL = optional base URL override (any OpenAI-compatible API)
+  LEI_LLM_PROVIDER = none | anthropic | openai | ollama  (default: none → deterministic only)
+  LEI_LLM_API_KEY  = provider API key (NEVER committed; not needed for ollama)
+  LEI_LLM_MODEL    = model id (e.g. claude-3-5-haiku-latest, gpt-4o-mini, llama3.2)
+  LEI_LLM_BASE_URL = optional base URL override (any OpenAI-compatible API;
+                    from a container, reach host-local Ollama via
+                    http://host.docker.internal:11434/v1)
+
+  ollama = FREE local model on the user's own machine (ollama.com), no
+  account, no key, no cost: `ollama pull llama3.2` then set the provider.
 
 Contract enforcement (§23 rules):
 1. model receives only the structured evidence bundle — nothing else
@@ -210,18 +215,30 @@ def make_investigation_llm() -> InvestigationLLM:
     provider_name = os.environ.get("LEI_LLM_PROVIDER", "none").lower()
     api_key = os.environ.get("LEI_LLM_API_KEY", "")
     model = os.environ.get("LEI_LLM_MODEL", "")
-    if provider_name == "none" or not api_key:
+    if provider_name == "none" or not provider_name:
         return InvestigationLLM(None)
-    if provider_name == "anthropic":
+    if provider_name == "anthropic" and api_key:
         return InvestigationLLM(
             AnthropicProvider(api_key, model or "claude-3-5-haiku-latest")
         )
-    if provider_name == "openai":
+    if provider_name == "openai" and api_key:
         return InvestigationLLM(
             OpenAICompatibleProvider(
                 api_key,
                 model or "gpt-4o-mini",
                 base_url=os.environ.get("LEI_LLM_BASE_URL", "https://api.openai.com/v1"),
+            )
+        )
+    if provider_name == "ollama":
+        # Free local model via Ollama's OpenAI-compatible endpoint —
+        # no account, no key, no cost.
+        return InvestigationLLM(
+            OpenAICompatibleProvider(
+                api_key or "ollama",
+                model or "llama3.2",
+                base_url=os.environ.get(
+                    "LEI_LLM_BASE_URL", "http://localhost:11434/v1"
+                ),
             )
         )
     return InvestigationLLM(None)
